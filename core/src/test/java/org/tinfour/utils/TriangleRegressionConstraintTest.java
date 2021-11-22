@@ -51,6 +51,25 @@ import java.util.function.Consumer;
 
 public class TriangleRegressionConstraintTest {
 
+    public void exportTinAsWKT(String filePath, IncrementalTin tin) throws IOException {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(filePath))) {
+            writer.write("the_geom, constraint_index\n");
+            for(SimpleTriangle triangle : tin.triangles()) {
+                Vertex a = triangle.getVertexA();
+                Vertex b = triangle.getVertexB();
+                Vertex c = triangle.getVertexC();
+                int region = -1;
+                IConstraint containingRegion = triangle.getContainingRegion();
+                if(containingRegion != null) {
+                    region = containingRegion.getConstraintIndex();
+                }
+                writer.write(String.format(Locale.ROOT, "\"POLYGON ((%f %f %f, %f %f %f, %f %f %f, %f %f %f))\", %d\n",
+                        a.x, a.y, a.getZ(), b.x, b.y, b.getZ(), c.x, c.y, c.getZ(), a.x, a.y, a.getZ(),
+                        region));
+            }
+        }
+    }
+
     @Test
     public void testIllegalPolygon() throws IOException {
         String line = "";
@@ -86,36 +105,23 @@ public class TriangleRegressionConstraintTest {
             List<IConstraint> constraints = new ArrayList<>();
             for(int idConstraint = 0; idConstraint < numberOfConstraints; idConstraint++) {
                 line = reader.readLine();
-                StringTokenizer t = new StringTokenizer(line, " ");
-                String constraintClass = t.nextToken();
-                int constraintIndex = Integer.parseInt(t.nextToken().trim());
-                if(constraintClass.equals("PolygonConstraint")) {
-                    List<Vertex> vertices = new ArrayList<>();
-                    while (t.hasMoreElements()) {
-                        vertices.add(meshPoints.get(Integer.parseInt(t.nextToken())));
+                if(line != null && line.contains(" ")) {
+                    StringTokenizer t = new StringTokenizer(line, " ");
+                    String constraintClass = t.nextToken();
+                    int constraintIndex = Integer.parseInt(t.nextToken().trim());
+                    if (constraintClass.equals("PolygonConstraint")) {
+                        List<Vertex> vertices = new ArrayList<>();
+                        while (t.hasMoreElements()) {
+                            vertices.add(meshPoints.get(Integer.parseInt(t.nextToken())));
+                        }
+                        PolygonConstraint p = new PolygonConstraint(vertices);
+                        constraints.add(p);
+                        p.setConstraintIndex(tin, constraintIndex);
                     }
-                    PolygonConstraint p = new PolygonConstraint(vertices);
-                    constraints.add(p);
-                    p.setConstraintIndex(tin, constraintIndex);
                 }
             }
             tin.addConstraints(constraints, false);
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(new File("target", "tinfour_wkt_triangles.csv")))) {
-                writer.write("the_geom, constraint_index\n");
-                for(SimpleTriangle triangle : tin.triangles()) {
-                    Vertex a = triangle.getVertexA();
-                    Vertex b = triangle.getVertexB();
-                    Vertex c = triangle.getVertexC();
-                    int region = -1;
-                    IConstraint containingRegion = triangle.getContainingRegion();
-                    if(containingRegion != null) {
-                        region = containingRegion.getConstraintIndex();
-                    }
-                    writer.write(String.format(Locale.ROOT, "\"POLYGON ((%f %f %f, %f %f %f, %f %f %f, %f %f %f))\", %d\n",
-                            a.x, a.y, a.getZ(), b.x, b.y, b.getZ(), c.x, c.y, c.getZ(), a.x, a.y, a.getZ(),
-                            region));
-                }
-            }
+            exportTinAsWKT(new File("target", "tinfour_wkt_triangles.csv").getPath(), tin);
         }
     }
 }
