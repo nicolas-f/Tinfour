@@ -49,6 +49,8 @@ import java.io.*;
 import java.util.*;
 import java.util.function.Consumer;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 public class TriangleRegressionConstraintTest {
 
     public void exportTinAsWKT(String filePath, IncrementalTin tin) throws IOException {
@@ -121,7 +123,25 @@ public class TriangleRegressionConstraintTest {
                 }
             }
             tin.addConstraints(constraints, false);
+            Map<Integer, Integer> constraintIndexToTriangleCount = new HashMap<>();
+
+            int total = 0;
+            for(SimpleTriangle t : tin.triangles()) {
+                IConstraint c = t.getContainingRegion();
+                if(c != null) {
+                    constraintIndexToTriangleCount.merge(c.getConstraintIndex(), 1, Integer::sum);
+                } else {
+                    constraintIndexToTriangleCount.merge(-1, 1, Integer::sum);
+                }
+                total+=1;
+            }
             exportTinAsWKT(new File("target", "tinfour_wkt_triangles.csv").getPath(), tin);
+
+            assertEquals(53, constraintIndexToTriangleCount.get(-1));
+            assertEquals(3, constraintIndexToTriangleCount.get(0));
+            assertEquals(18, constraintIndexToTriangleCount.get(1));
+            assertEquals(2, constraintIndexToTriangleCount.get(2));
+            assertEquals(14, constraintIndexToTriangleCount.get(3));
         }
     }
 }
